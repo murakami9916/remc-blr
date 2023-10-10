@@ -253,6 +253,23 @@ if abspath(PROGRAM_FILE) == @__FILE__
                         xscale=:log10, xlabel="log(β)", ylabel="feature labels")
     savefig(plt, "heatmap.png")
 
+    
+    # 列パターンごとの個数を計算
+    g_df = DataFrame(results[T].g, :auto)
+    pattern_counts = combine(groupby(g_df, names(g_df)), nrow)
+    sort!(pattern_counts, :nrow, rev = true)
+    plt = heatmap(1:size(pattern_counts)[1], 1:M, Matrix{Int64}(pattern_counts[:, 1:M])', 
+                            c=:binary, grid = true, legend = false, lw = 2, dpi=500,
+                            xlabel="probability [%]", ylabel="feature labels")
+
+    plt = vline!([1.5:5.5], color=:gray, linewidth=2, label="", dpi=500)
+    plt = hline!([1.5:5.5], color=:gray, linewidth=2, label="", dpi=500)
+
+    plt = xticks!(Vector(1:length(pattern_counts.nrow)), ["$i" for i in 100.0.*pattern_counts.nrow./num_steps])
+    plt = yticks!(Vector(1:M), data.labels)
+
+    savefig(plt, "combination.png")
+
 
     # 
     ĝ = results[T].g[argmin(results[T].E), :]
