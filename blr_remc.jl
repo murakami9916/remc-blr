@@ -4,6 +4,8 @@ using LinearAlgebra
 using Distributions
 using Plots
 using ProgressBars
+using DataFrames
+using CSV
 
 ### 構造体
 # -----------------------------------------
@@ -11,13 +13,13 @@ struct Data
     X::Matrix{Float64}
     y::Vector{Float64}
     λ₀::Float64
-    Data(X, y, λ₀) = new(X, y, λ₀)
+    labels::Vector{String}
+    Data(X, y, λ₀, labels) = new(X, y, λ₀, labels)
 end
 
 mutable struct Parameters
     g::Vector{Int64}
-    λ::Float64
-    Parameters(g, λ) = new(g, λ)
+    Parameters(g) = new(g)
 end
 
 mutable struct Replica
@@ -98,7 +100,7 @@ end
 
     Xₛ = data.X[:, Bool.(parameters.g)]
     y = data.y
-    λ_vector::Vector{Float64} = Vector([10.0^i for i in -1.5:0.1:3.0])
+    λ_vector::Vector{Float64} = Vector([10.0^i for i in -1.5:0.01:3.0])
     ϕ::Vector{Float64} = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
     FE = integrate_over_lambda(λ_vector, ϕ)
 
@@ -135,6 +137,7 @@ end
 
 function remc_step(mcmc_step::Int64, data::Data, replicas::Vector{Replica})
     # メトロポリスステップ
+    num_replicas::Int64 = length(replicas)
     for r in 1:num_replicas
         replicas[r] = metropolis_indicator(data, replicas[r])
     end
@@ -187,52 +190,80 @@ function replica_exchange_mcmc(data::Data, replicas::Vector{Replica}, num_steps:
     return results
 end
 
+function load_data(path_input_data, path_output_data)
+    y_df = CSV.read(path_output_data, DataFrame)
+    y::Vector{Float64} = y_df[:, 1]
+    N::Int64 = length(y)
 
-# データとハイパーパラメータの設定
-N = 5  # データ数
-M = 10   # 特徴量の次元
+    X_df = CSV.read(path_input_data, DataFrame)
+    X = Matrix{Float64}(X_df)
+    X = hcat(X, ones(N))
+    feature_label::Vector{String} = push!(names(X_df), "bias")
 
-# データの生成（例としてランダムなデータを生成）
-X = randn(N, M)
-X = hcat(X, ones(N))
-true_weights = [1.0, 1.0]
-λ = 1.0  # 既知の精度パラメータ
-
-## 事前分布
-λ₀ = 1.0
-Λ₀ = λ₀ * Matrix(I, M+1, M+1)
-
-# ノイズ項に精度パラメータを適用
-y = X[:, 1:2]  * true_weights+ rand(Normal(0.0, 1.0 / λ), N)
-
-data = Data(X, y, λ₀)
-
-num_steps = 1000 # MCMCステップ数
-T = 32
-τ = 1.1
-B = Vector([τ^(t-T) for t in 1:T])
-num_replicas = length(B)
-
-replicas = Array{Replica}(undef, T)
-for r in 1:num_replicas
-    Θ = Parameters( rand([1, 0], M+1), λ )
-    replicas[r] = Replica(Θ , B[r], 1e8 )
+    ## 事前分布
+    λ₀::Float64 = 0.1
+    return Data(X, y, λ₀, feature_label)
 end
-typeof(replicas)
 
-results = replica_exchange_mcmc(data, replicas, num_steps)
+if abspath(PROGRAM_FILE) == @__FILE__
+
+    random_seed::Int64 = tryparse(Int64, ARGS[1])
+    Random.seed!(random_seed)
+    path_input_data = ARGS[2]
+    path_output_data = ARGS[3]
+
+    data::Data = load_data(path_input_data, path_output_data)
+
+    num_steps::Int64 = 100 # MCMCステップ数
+    T::Int64 = 16
+    τ::Float64 = 1.1
+
+    B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
+    M::Int64 = length(data.labels)
+    replicas = Array{Replica}(undef, T)
+    for r in 1:T
+        Θ = Parameters( rand([1, 0], M) )
+        replicas[r] = Replica(Θ , B[r], 1e8 )
+    end
+
+    results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
 
 
-num = fill(num_steps, T)
-num[1] = num_steps / 2.0
-num[T] = num_steps / 2.0
-plt = plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
-xlabel="log(β)", ylabel="exchange ratio [%]", label="", xscale=:log10, color="gray")
-savefig(plt, "exchange_ratio.png")
+    
+    
+    num = fill(num_steps, T)
+    num[1] = num_steps / 2.0
+    num[T] = num_steps / 2.0
+    plt = plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
+                        xlabel="log(β)", ylabel="exchange ratio [%]", label="", xscale=:log10, color="gray")
+    savefig(plt, "exchange_ratio.png")
 
-g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
-plt = plot(100*g_sampling / num_steps, st="bar", label="",
-                    ylims=(0, 105),dpi=500,xlabel="log(β)", ylabel="probability [%]",
-                    color="gray")
-savefig(plt, "g_sampling.png")
+    g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
+    plt = plot(data.labels, 100*g_sampling / num_steps, st="bar", label="",
+                        ylims=(0, 105),dpi=500,xlabel="log(β)", ylabel="probability [%]",
+                        color="gray")
+    savefig(plt, "g_sampling.png")
 
+
+    # 
+    ĝ = results[T].g[argmin(results[T].E), :]
+    Xₛ = data.X[:, Bool.(ĝ)]; y = data.y
+    λ_vector = Vector([10.0^i for i in -1.5:0.01:3.0])
+
+    Λ₀ = data.λ₀ * Matrix(I, sum(ĝ), sum(ĝ))
+    ϕ = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
+    FE = integrate_over_lambda(λ_vector, ϕ)
+
+    ϕ_max = maximum(-ϕ)
+    plt = plot(λ_vector, exp.(-ϕ.-ϕ_max), st="scatter", color="gray",
+            xlabel="λ", ylabel="model evidence", label="", dpi=500)
+    savefig(plt, "over_lambda.png")
+
+    λ̂ = λ_vector[argmin(ϕ)]
+    μ̂, Λ̂ = calc_posterior_distribution(Xₛ, y, λ̂, Λ₀)
+    ŷ = Xₛ * μ̂
+    plt = plot([-3.5:3.5], [-3.5:3.5], label="", color="black")
+    plt = plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
+                        ylabel="predict", xlabel="true", color="gray", ms=5)
+    savefig(plt, "prediction.png")
+end
