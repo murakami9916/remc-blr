@@ -244,6 +244,15 @@ if abspath(PROGRAM_FILE) == @__FILE__
                         color="gray")
     savefig(plt, "g_sampling.png")
 
+    G = Matrix{Int64}(undef, M, T)
+    for t in 1:T
+        gₜ = Vector([sum(results[t].g[:, i]) for i in 1:size(results[t].g)[2]])
+        G[:, t] = gₜ
+    end
+    plt = heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
+                        xscale=:log10, xlabel="log(β)", ylabel="feature labels")
+    savefig(plt, "heatmap.png")
+
 
     # 
     ĝ = results[T].g[argmin(results[T].E), :]
