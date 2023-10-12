@@ -6,6 +6,7 @@ using Plots
 using ProgressBars
 using DataFrames
 using CSV
+using StatsBase
 
 ### 構造体
 # -----------------------------------------
@@ -13,8 +14,9 @@ struct Data
     X::Matrix{Float64}
     y::Vector{Float64}
     λ₀::Float64
+    λ_vector::Vector{Float64}
     labels::Vector{String}
-    Data(X, y, λ₀, labels) = new(X, y, λ₀, labels)
+    Data(X, y, λ₀, λ_vector, labels) = new(X, y, λ₀,λ_vector,  labels)
 end
 
 mutable struct Parameters
@@ -99,8 +101,7 @@ end
     Λ₀::Matrix{Float64} = data.λ₀ * Matrix(I, L, L)
 
     Xₛ = data.X[:, Bool.(parameters.g)]
-    y = data.y
-    λ_vector::Vector{Float64} = Vector([10.0^i for i in -1.5:0.01:3.0])
+    y = data.y; λ_vector = data.λ_vector
     ϕ::Vector{Float64} = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
     FE = integrate_over_lambda(λ_vector, ϕ)
 
@@ -190,6 +191,53 @@ function replica_exchange_mcmc(data::Data, replicas::Vector{Replica}, num_steps:
     return results
 end
 
+function calc_DoS(B::Vector{Float64}, results::Vector{Result})
+    # マルチヒストグラムによるDoSの計算
+    T = length(B)
+    E_all = Array{Float64}(undef, num_steps, T)
+    for r in 1:T
+        E_all[:, r] = results[r].E
+    end
+    all_neg_log_likelihood = vec(E_all)
+    n = size(E_all)[1] 
+    hist = fit(Histogram, all_neg_log_likelihood, nbins=100)
+
+    edges = Vector(hist.edges[1])
+    E = (edges[1:end-1] + edges[2:end]) ./ 2.0
+    H = hist.weights
+    tolerance = 1e-6
+    max_iter = 1000
+
+    Z = ones(T)
+    D = ones(length(H))
+    for i in 1:max_iter
+        prev_Z = deepcopy(Z)
+
+        D = vec( H ./ ( exp.( - E*B' ) * ( n ./ Z ) ) )
+        Z = vec( D' * exp.( - E*B' ) )
+        
+        err = mean(abs.(Z .- prev_Z))
+        if err < tolerance
+            println("i=$i, err=$err")
+            break
+        end
+    end
+
+    plt = bar( E[D.!=0], D[D.!=0] / sum(D[D.!=0]), legend=false, 
+            xlabel="Negative marginal log-likelihood", ylabel = "Density of states",
+            dpi=500, color="gray")
+    savefig(plt, "DoS_linear.png")
+
+    plt = bar( E[D.!=0], D[D.!=0] / sum(D[D.!=0]), legend=false, 
+            xlabel="Negative marginal log-likelihood", ylabel = "Density of states",yscale=:log10,
+            dpi=500, color="gray")
+    savefig(plt, "DoS_log.png")
+
+    plt = plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
+                    legend=false, xlabel="log(β)", ylabel="Free energy")
+    savefig(plt, "FE.png")
+end
+
 function load_data(path_input_data, path_output_data)
     y_df = CSV.read(path_output_data, DataFrame)
     y::Vector{Float64} = y_df[:, 1]
@@ -201,8 +249,11 @@ function load_data(path_input_data, path_output_data)
     feature_label::Vector{String} = push!(names(X_df), "bias")
 
     ## 事前分布
-    λ₀::Float64 = 0.1
-    return Data(X, y, λ₀, feature_label)
+    λ₀::Float64 = 0.01
+    # λ_vector = Vector([10.0^i for i in -1.0:0.05:2])
+    λ_vector = Vector([10.0^i for i in 0.0:0.02:2.5])
+    # λ_vector = Vector([10.0^i for i in 0.0:0.02:3])
+    return Data(X, y, λ₀, λ_vector, feature_label)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
@@ -214,9 +265,9 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     data::Data = load_data(path_input_data, path_output_data)
 
-    num_steps::Int64 = 100 # MCMCステップ数
+    num_steps::Int64 = 3000 # MCMCステップ数
     T::Int64 = 16
-    τ::Float64 = 1.1
+    τ::Float64 = 1.25
 
     B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
     M::Int64 = length(data.labels)
@@ -227,7 +278,6 @@ if abspath(PROGRAM_FILE) == @__FILE__
     end
 
     results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
-
 
     
     
@@ -262,10 +312,10 @@ if abspath(PROGRAM_FILE) == @__FILE__
                             c=:binary, grid = true, legend = false, lw = 2, dpi=500,
                             xlabel="probability [%]", ylabel="feature labels")
 
-    plt = vline!([1.5:5.5], color=:gray, linewidth=2, label="", dpi=500)
-    plt = hline!([1.5:5.5], color=:gray, linewidth=2, label="", dpi=500)
+    plt = vline!([1.5:length(pattern_counts.nrow)+0.5], color=:gray, linewidth=2, label="", dpi=500)
+    plt = hline!([1.5:M+0.5], color=:gray, linewidth=2, label="", dpi=500)
 
-    plt = xticks!(Vector(1:length(pattern_counts.nrow)), ["$i" for i in 100.0.*pattern_counts.nrow./num_steps])
+    plt = xticks!(Vector(1:length(pattern_counts.nrow)), ["$(round(i, digits=2))" for i in 100.0.*pattern_counts.nrow./num_steps])
     plt = yticks!(Vector(1:M), data.labels)
 
     savefig(plt, "combination.png")
@@ -274,7 +324,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # 
     ĝ = results[T].g[argmin(results[T].E), :]
     Xₛ = data.X[:, Bool.(ĝ)]; y = data.y
-    λ_vector = Vector([10.0^i for i in -1.5:0.01:3.0])
+    λ_vector = data.λ_vector
 
     Λ₀ = data.λ₀ * Matrix(I, sum(ĝ), sum(ĝ))
     ϕ = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
@@ -292,4 +342,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     plt = plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
                         ylabel="predict", xlabel="true", color="gray", ms=5)
     savefig(plt, "prediction.png")
+    
+    calc_DoS(B, results)
+
 end
