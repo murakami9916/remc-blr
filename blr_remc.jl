@@ -290,7 +290,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
     plt = plot(data.labels, 100*g_sampling / num_steps, st="bar", label="",
-                        ylims=(0, 105),dpi=500,xlabel="log(β)", ylabel="probability [%]",
+                        ylims=(0, 105),dpi=500,xlabel="feature labels", ylabel="probability [%]",
                         color="gray")
     savefig(plt, "g_sampling.png")
 
