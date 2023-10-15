@@ -22,7 +22,6 @@ $$
 p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n)p(\boldsymbol{w})p(\boldsymbol{g})p(\lambda),
 $$
 
-where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable.
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n)}$. In this code, we assumed an uninformed distribution as a prior distribution.
 
-In this code, we assumed an uninformed distribution as a prior distribution.
 
