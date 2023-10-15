@@ -7,6 +7,8 @@ using ProgressBars
 using DataFrames
 using CSV
 using StatsBase
+using JLD2
+using FileIO
 
 ### 構造体
 # -----------------------------------------
@@ -194,6 +196,8 @@ end
 function calc_DoS(B::Vector{Float64}, results::Vector{Result})
     # マルチヒストグラムによるDoSの計算
     T = length(B)
+    M = size(results[T].g)[2]
+    num_states = 2^M
     E_all = Array{Float64}(undef, num_steps, T)
     for r in 1:T
         E_all[:, r] = results[r].E
@@ -223,19 +227,47 @@ function calc_DoS(B::Vector{Float64}, results::Vector{Result})
         end
     end
 
-    plt = bar( E[D.!=0], D[D.!=0] / sum(D[D.!=0]), legend=false, 
+    plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",
             dpi=500, color="gray")
     savefig(plt, "DoS_linear.png")
 
-    plt = bar( E[D.!=0], D[D.!=0] / sum(D[D.!=0]), legend=false, 
+
+    plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",yscale=:log10,
             dpi=500, color="gray")
     savefig(plt, "DoS_log.png")
 
+
     plt = plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
                     legend=false, xlabel="log(β)", ylabel="Free energy")
     savefig(plt, "FE.png")
+end
+
+function output_results(results::Vector{Result})
+    num_steps = size(results[T].g)[1]
+    M = size(results[T].g)[2]
+    column_names = vcat(["E", "β", "K", "P"], ["X$i" for i in 1:M], )
+
+    output = DataFrame()
+    for col_name in column_names
+        output[!, Symbol(col_name)] = Any[]
+    end
+
+    for i in 1:num_steps
+        for t in 1:T
+            gᵣ = results[t].g[i, :]
+            pattern = join(string.(gᵣ))
+            series = vcat(
+                [results[t].E[i], results[t].β, sum(gᵣ), pattern], gᵣ
+            )
+
+            push!(output, series)
+        end
+    end
+
+    CSV.write("output_result.csv",  output)
+    save("output.jld2", "results", output)
 end
 
 function load_data(path_input_data, path_output_data)
@@ -251,7 +283,7 @@ function load_data(path_input_data, path_output_data)
     ## 事前分布
     λ₀::Float64 = 0.01
     # λ_vector = Vector([10.0^i for i in -1.0:0.05:2])
-    λ_vector = Vector([10.0^i for i in 0.0:0.02:2.5])
+    λ_vector = Vector([10.0^i for i in 0.0:0.2:2.5])
     # λ_vector = Vector([10.0^i for i in 0.0:0.02:3])
     return Data(X, y, λ₀, λ_vector, feature_label)
 end
@@ -279,7 +311,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
 
-    
+    output_results(results)
     
     num = fill(num_steps, T)
     num[1] = num_steps / 2.0
