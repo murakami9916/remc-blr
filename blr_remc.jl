@@ -242,18 +242,18 @@ function calc_DoS(B::Vector{Float64}, results::Vector{Result})
     plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",
             dpi=500, color="gray")
-    savefig(plt, "DoS_linear.png")
+    savefig(plt, "$output_path/DoS_linear.png")
 
 
     plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",yscale=:log10,
             dpi=500, color="gray")
-    savefig(plt, "DoS_log.png")
+    savefig(plt, "$output_path/DoS_log.png")
 
 
     plt = plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
                     legend=false, xlabel="log(β)", ylabel="Free energy")
-    savefig(plt, "FE.png")
+    savefig(plt, "$output_path/FE.png")
 end
 
 function output_results(results::Vector{Result})
@@ -282,59 +282,20 @@ function output_results(results::Vector{Result})
     save("output.jld2", "results", output)
 end
 
-function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64})
-    y_df = CSV.read(path_output_data, DataFrame)
-    y::Vector{Float64} = y_df[:, 1]
-    N::Int64 = length(y)
-
-    X_df = CSV.read(path_input_data, DataFrame)
-    X = Matrix{Float64}(X_df)
-    X = hcat(X, ones(N))
-    feature_label::Vector{String} = push!(names(X_df), "bias")
-
-    ## 事前分布
-    λ₀::Float64 = 0.01
-    return Data(X, y, λ₀, λ_vector, feature_label)
-end
-
-if abspath(PROGRAM_FILE) == @__FILE__
-
-    num_steps::Int64 = 1000 # MCMCステップ数
-    T::Int64 = 16
-    τ::Float64 = 1.25
-    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.02:3.5])
-
-    random_seed::Int64 = tryparse(Int64, ARGS[1])
-    Random.seed!(random_seed)
-    path_input_data = ARGS[2]
-    path_output_data = ARGS[3]
-
-    data::Data = load_data(path_input_data, path_output_data, λ_vector)
-
-    B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
-    M::Int64 = length(data.labels)
-    replicas = Array{Replica}(undef, T)
-    for r in 1:T
-        Θ = Parameters( rand([1, 0], M) )
-        replicas[r] = Replica(Θ , B[r], 1e8 )
-    end
-
-    results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
-
-    output_results(results)
-    
+function plot_result(results::Vector{Result}, data::Data, 
+                                    num_steps::Int64, M::Int64, T::Int64)
     num = fill(num_steps, T)
     num[1] = num_steps / 2.0
     num[T] = num_steps / 2.0
     plt = plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
                         xlabel="log(β)", ylabel="exchange ratio [%]", label="", xscale=:log10, color="gray")
-    savefig(plt, "exchange_ratio.png")
+    savefig(plt, "$output_path/exchange_ratio.png")
 
     g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
     plt = plot(data.labels, 100*g_sampling / num_steps, st="bar", label="",
                         ylims=(0, 105),dpi=500,xlabel="feature labels", ylabel="probability [%]",
                         color="gray")
-    savefig(plt, "g_sampling.png")
+    savefig(plt, "$output_path/g_sampling.png")
 
     G = Matrix{Int64}(undef, M, T)
     for t in 1:T
@@ -343,7 +304,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     end
     plt = heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
                         xscale=:log10, xlabel="log(β)", ylabel="feature labels")
-    savefig(plt, "heatmap.png")
+    savefig(plt, "$output_path/heatmap.png")
 
     
     # 列パターンごとの個数を計算
@@ -357,10 +318,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
     plt = vline!([1.5:length(pattern_counts.nrow)+0.5], color=:gray, linewidth=2, label="", dpi=500)
     plt = hline!([1.5:M+0.5], color=:gray, linewidth=2, label="", dpi=500)
 
-    plt = xticks!(Vector(1:length(pattern_counts.nrow)), ["$(round(i, digits=2))" for i in 100.0.*pattern_counts.nrow./num_steps])
+    plt = xticks!(Vector(1:length(pattern_counts.nrow)),
+                         ["$(round(i, digits=2))" for i in 100.0.*pattern_counts.nrow./num_steps])
     plt = yticks!(Vector(1:M), data.labels)
 
-    savefig(plt, "combination.png")
+    savefig(plt, "$output_path/combination.png")
 
 
     # 
@@ -375,7 +337,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     ϕ_max = maximum(-ϕ)
     plt = plot(λ_vector, exp.(-ϕ.-ϕ_max), st="scatter", color="gray",
             xlabel="λ", ylabel="model evidence", label="", dpi=500)
-    savefig(plt, "over_lambda.png")
+    savefig(plt, "$output_path/over_lambda.png")
 
     λ̂ = λ_vector[argmin(ϕ)]
     μ̂, Λ̂ = calc_posterior_distribution(Xₛ, y, λ̂, Λ₀)
@@ -383,8 +345,58 @@ if abspath(PROGRAM_FILE) == @__FILE__
     plt = plot([-4:4], [-4:4], label="", color="black")
     plt = plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
                         ylabel="predict", xlabel="true", color="gray", ms=5)
-    savefig(plt, "prediction.png")
-    
+    savefig(plt, "$output_path/prediction.png")
+
+end
+
+function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64})
+    y_df = CSV.read(path_output_data, DataFrame)
+    y::Vector{Float64} = y_df[:, 1]
+    N::Int64 = length(y)
+
+    X_df = CSV.read(path_input_data, DataFrame)
+    X = Matrix{Float64}(X_df)
+    X = hcat(X, ones(N))
+    feature_label::Vector{String} = push!(names(X_df), "bias")
+
+    ## 事前分布
+    λ₀::Float64 = 0.001
+    return Data(X, y, λ₀, λ_vector, feature_label)
+end
+
+if abspath(PROGRAM_FILE) == @__FILE__
+
+    num_steps::Int64 = 2500 # MCMCステップ数
+    T::Int64 = 16
+    τ::Float64 = 1.25
+    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.01:3.5])
+
+    random_seed::Int64 = tryparse(Int64, ARGS[1])
+    Random.seed!(random_seed)
+    path_input_data = ARGS[2]
+    path_output_data = ARGS[3]
+
+    input_basename = split(basename(path_input_data), ".")[1]
+    output_basename = split(basename(path_output_data), ".")[1]
+    output_path = "$output_basename/$input_basename/$random_seed"
+    mkpath(output_path)
+
+    data::Data = load_data(path_input_data, path_output_data, λ_vector)
+
+    B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
+    M::Int64 = length(data.labels)
+    replicas = Array{Replica}(undef, T)
+    for r in 1:T
+        Θ = Parameters( rand([1, 0], M) )
+        replicas[r] = Replica(Θ , B[r], 1e8 )
+    end
+
+    results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
+
+    output_results(results)
+
     calc_DoS(B, results)
 
+    plot_result(results, data, num_steps, M, T)
+    
 end
