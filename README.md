@@ -16,10 +16,7 @@ $$
 p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n) = \mathcal{N}\left ((\boldsymbol{g} \circ \boldsymbol{w})^{\top}\boldsymbol{\mathrm{x}}_n, \lambda^{-1} \right).
 $$
 
-
-$$
-p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n, \boldsymbol{w}, \lambda) = \frac{ p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n) p(\boldsymbol{g}) }{Z}.
-$$
+The conditional probability of $\boldsymbol{g}$ can be expressed using Bayes' theorem and marginalization as follows:
 
 $$
 p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n) = \frac{1}{Z} \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n)p(\boldsymbol{g})
