@@ -31,7 +31,12 @@ mutable struct Replica
     β::Float64
     Eᵤ::Float64
     χ::Int64
-    Replica(Θ, β, Eᵤ) = new(Θ, β, Eᵤ)
+    stack::Dict{String,Float64}
+    function Replica(Θ, β, Eᵤ)
+        χ = 0
+        stack = Dict{String,Float64}()
+        new(Θ, β, Eᵤ, χ, stack)
+    end 
 end
 
 mutable struct Result
@@ -39,7 +44,6 @@ mutable struct Result
     E::Vector{Float64}
     β::Float64
     χ::Int64
-    Result(g, E, β, χ) = new(g, E, β, χ)
 end
 # -----------------------------------------
 
@@ -105,7 +109,7 @@ end
     Xₛ = data.X[:, Bool.(parameters.g)]
     y = data.y; λ_vector = data.λ_vector
     ϕ::Vector{Float64} = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
-    FE = integrate_over_lambda(λ_vector, ϕ)
+    FE::Float64 = integrate_over_lambda(λ_vector, ϕ)
 
     return FE
 end
@@ -116,7 +120,15 @@ function metropolis_indicator(data::Data, replica::Replica)
     for i in 1:L
         Θₜ = deepcopy(replica.Θ)
         Θₜ.g[i] = ( ~Θₜ.g[i] + 2 )
-        tmp_Eᵤ = calculate_marginal_likelihood(data, Θₜ)
+
+        pattern::String = join(string.(Θₜ.g))
+        if haskey(replica.stack, pattern)
+            tmp_Eᵤ = replica.stack[pattern]
+        else
+            tmp_Eᵤ = calculate_marginal_likelihood(data, Θₜ)
+            replica.stack[pattern] = tmp_Eᵤ
+        end
+    
         if rand() <= exp( - β * (tmp_Eᵤ - replica.Eᵤ) )
             replica.Θ = deepcopy(Θₜ)
             replica.Eᵤ = deepcopy(tmp_Eᵤ)
@@ -270,7 +282,7 @@ function output_results(results::Vector{Result})
     save("output.jld2", "results", output)
 end
 
-function load_data(path_input_data, path_output_data)
+function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64})
     y_df = CSV.read(path_output_data, DataFrame)
     y::Vector{Float64} = y_df[:, 1]
     N::Int64 = length(y)
@@ -282,24 +294,22 @@ function load_data(path_input_data, path_output_data)
 
     ## 事前分布
     λ₀::Float64 = 0.01
-    # λ_vector = Vector([10.0^i for i in -1.0:0.05:2])
-    λ_vector = Vector([10.0^i for i in 0.0:0.2:2.5])
-    # λ_vector = Vector([10.0^i for i in 0.0:0.02:3])
     return Data(X, y, λ₀, λ_vector, feature_label)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
+
+    num_steps::Int64 = 1000 # MCMCステップ数
+    T::Int64 = 16
+    τ::Float64 = 1.25
+    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.02:3.5])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
     Random.seed!(random_seed)
     path_input_data = ARGS[2]
     path_output_data = ARGS[3]
 
-    data::Data = load_data(path_input_data, path_output_data)
-
-    num_steps::Int64 = 3000 # MCMCステップ数
-    T::Int64 = 16
-    τ::Float64 = 1.25
+    data::Data = load_data(path_input_data, path_output_data, λ_vector)
 
     B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
     M::Int64 = length(data.labels)
@@ -370,7 +380,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     λ̂ = λ_vector[argmin(ϕ)]
     μ̂, Λ̂ = calc_posterior_distribution(Xₛ, y, λ̂, Λ₀)
     ŷ = Xₛ * μ̂
-    plt = plot([-3.5:3.5], [-3.5:3.5], label="", color="black")
+    plt = plot([-4:4], [-4:4], label="", color="black")
     plt = plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
                         ylabel="predict", xlabel="true", color="gray", ms=5)
     savefig(plt, "prediction.png")
