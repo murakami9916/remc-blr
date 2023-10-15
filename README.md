@@ -19,6 +19,7 @@ $$
 The conditional probability of $\boldsymbol{g}$ can be expressed using Bayes' theorem and marginalization as follows:
 
 $$
-p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n) = \frac{1}{Z} \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n)p(\boldsymbol{g})
+p(\boldsymbol{g} | \boldsymbol{\mathrm{x}}_n, \mathrm{y}_n) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathrm{y}_n|\boldsymbol{g}, \boldsymbol{w}, \lambda, \boldsymbol{\mathrm{x}}_n)p(\boldsymbol{w})p(\boldsymbol{g})p(\lambda),
 $$
 
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. In this code, we assumed an uninformed distribution as a prior distribution.
