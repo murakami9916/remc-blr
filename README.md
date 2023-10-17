@@ -1,4 +1,4 @@
-## Bayesian linear regression with feature selection using replica exchange Monte Carlo Method
+### Bayesian linear regression with feature selection using replica exchange Monte Carlo Method
 
 ## Model: Bayesian linear regression with feature selection
 
@@ -29,10 +29,10 @@ $$
 The conditional probability of $\boldsymbol{g}$ can be expressed using Bayes' theorem and marginalization as follows:
 
 $$
-p(\boldsymbol{g} | \mathcal{D}) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\boldsymbol{w})p(\lambda)p(\boldsymbol{g}),
+p(\boldsymbol{g} | \mathcal{D}) = \frac{1}{Z} \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\boldsymbol{w})p(\lambda)p(\boldsymbol{g}),
 $$
 
-where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\mathcal{D}|\boldsymbol{g})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$. The prior distribution $p(\boldsymbol{g})$ is set to the uninformed　Bernoulli distribution.
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\boldsymbol{g}|\mathcal{D})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$, $p(\boldsymbol{\lambda})$. The prior distribution $p(\boldsymbol{g})$ is set to the uninformed Bernoulli distribution.
 
 ## Algorithm: Replica Exchange Monte Carlo Method
 We perform posterior visualization and the maximum a posteriori (MAP) estimation through sampling from the posterior distribution. A popular sampling method is the Monte Carlo (MC) method, which may be bounded by local solutions for cases when the initial value is affected or the cost function landscape is complex.
