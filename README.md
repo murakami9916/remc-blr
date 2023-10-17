@@ -1,4 +1,4 @@
-### Bayesian linear regression with feature selection using replica exchange Monte Carlo Method
+# Bayesian linear regression with feature selection using replica exchange Monte Carlo Method
 
 ## Model: Bayesian linear regression with feature selection
 
