@@ -52,11 +52,10 @@ $$
 D(F) = \frac{ \sum_{\tau}{H(F; \beta_{\tau})} }{ \sum_{\tau}{n_\tau \exp({-\beta_{\tau}F})/Z(\beta_\tau)} },
 $$
 
-## Example
-
-
 $$
 Z(\beta_\tau) = \sum_{F}{D(F)\exp({-\beta_{\tau}F})}
 $$
 
 where $n_\tau$ is the number of samples at $\beta_\tau$. We alternately compute the above equations to estimate $D(F)$ and $Z(\beta_\tau)$.
+
+## Example
