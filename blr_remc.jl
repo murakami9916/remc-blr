@@ -117,7 +117,7 @@ end
 function metropolis_indicator(data::Data, replica::Replica)
     L::Int64 = length(replica.Θ.g)
     β::Float64 = replica.β
-    for i in 1:L
+    for i in randperm(L)
         Θₜ = deepcopy(replica.Θ)
         Θₜ.g[i] = ( ~Θₜ.g[i] + 2 )
 
@@ -205,12 +205,14 @@ function replica_exchange_mcmc(data::Data, replicas::Vector{Replica}, num_steps:
     return results
 end
 
-function calc_DoS(B::Vector{Float64}, results::Vector{Result})
+function calc_DoS(B::Vector{Float64}, results::Vector{Result}, output_path::String)
+
     # マルチヒストグラムによるDoSの計算
     T = length(B)
     M = size(results[T].g)[2]
     num_states = 2^M
     E_all = Array{Float64}(undef, num_steps, T)
+    bottom = 1e-1
     for r in 1:T
         E_all[:, r] = results[r].E
     end
@@ -221,7 +223,7 @@ function calc_DoS(B::Vector{Float64}, results::Vector{Result})
     edges = Vector(hist.edges[1])
     E = (edges[1:end-1] + edges[2:end]) ./ 2.0
     H = hist.weights
-    tolerance = 1e-6
+    tolerance = 1e-8
     max_iter = 1000
 
     Z = ones(T)
@@ -241,13 +243,13 @@ function calc_DoS(B::Vector{Float64}, results::Vector{Result})
 
     plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",
-            dpi=500, color="gray")
+            dpi=500, color="gray", fillrange=bottom)
     savefig(plt, "$output_path/DoS_linear.png")
 
 
     plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",yscale=:log10,
-            dpi=500, color="gray")
+            dpi=500, color="gray", fillrange=bottom)
     savefig(plt, "$output_path/DoS_log.png")
 
 
@@ -256,7 +258,7 @@ function calc_DoS(B::Vector{Float64}, results::Vector{Result})
     savefig(plt, "$output_path/FE.png")
 end
 
-function output_results(results::Vector{Result})
+function output_results(results::Vector{Result}, output_path::String)
     num_steps = size(results[T].g)[1]
     M = size(results[T].g)[2]
     column_names = vcat(["E", "β", "K", "P"], ["X$i" for i in 1:M], )
@@ -278,12 +280,12 @@ function output_results(results::Vector{Result})
         end
     end
 
-    CSV.write("output_result.csv",  output)
-    save("output.jld2", "results", output)
+    CSV.write("$output_path/output_result.csv",  output)
+    save("$output_path/output.jld2", "results", output)
 end
 
-function plot_result(results::Vector{Result}, data::Data, 
-                                    num_steps::Int64, M::Int64, T::Int64)
+function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
+                                    M::Int64, T::Int64, output_path::String)
     num = fill(num_steps, T)
     num[1] = num_steps / 2.0
     num[T] = num_steps / 2.0
@@ -303,7 +305,7 @@ function plot_result(results::Vector{Result}, data::Data,
         G[:, t] = gₜ
     end
     plt = heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
-                        xscale=:log10, xlabel="log(β)", ylabel="feature labels")
+                        xscale=:log10, xlabel="log(β)", ylabel="feature labels", clim=(0, 100))
     savefig(plt, "$output_path/heatmap.png")
 
     
@@ -359,6 +361,10 @@ function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64}
     X = hcat(X, ones(N))
     feature_label::Vector{String} = push!(names(X_df), "bias")
 
+    # ノーマライズ
+    y = ( y .- mean(y) ) ./ std(y)
+    X = ( X .- mean(X) ) ./ std(X)
+
     ## 事前分布
     λ₀::Float64 = 0.001
     return Data(X, y, λ₀, λ_vector, feature_label)
@@ -366,10 +372,11 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
-    num_steps::Int64 = 2500 # MCMCステップ数
+    num_steps::Int64 = 100 # MCMCステップ数
     T::Int64 = 16
     τ::Float64 = 1.25
-    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.01:3.5])
+    # λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.01:3.5])
+    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.01:2.0])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
     Random.seed!(random_seed)
@@ -393,10 +400,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
 
-    output_results(results)
-
-    calc_DoS(B, results)
-
-    plot_result(results, data, num_steps, M, T)
+    output_results(results, output_path)
+    calc_DoS(B, results, output_path)
+    plot_result(results, data, num_steps, M, T, output_path)
     
 end
