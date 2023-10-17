@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # Bayesian linear regression with feature selection using replica exchange Monte Carlo Method
 
 ## Model: Bayesian linear regression with feature selection
