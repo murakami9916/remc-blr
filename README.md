@@ -30,6 +30,15 @@ $$
 p(\boldsymbol{g} | \mathcal{D}) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\boldsymbol{w})p(\boldsymbol{g})p(\lambda),
 $$
 
-where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\boldsymbol{g} | \mathcal{D})}$. In this code, we assumed an uninformed distribution as a prior distribution.
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\mathcal{D}|\boldsymbol{g})}$. In this code, we assumed an uninformed distribution as a prior distribution.
 
+## Algorithm
+We perform posterior visualization and the maximum a posteriori (MAP) estimation through sampling from the posterior distribution. A popular sampling method is the Monte Carlo (MC) method, which may be bounded by local solutions for cases when the initial value is affected or the cost function landscape is complex.
 
+Therefore, the replica exchange Monte Carlo (REMC) method was used to estimate the global solution. For sampling using the REMC method, a replica was prepared with the inverse temperature $\beta$ introduced as follows:
+
+$$
+    p(\boldsymbol{g}|\mathcal{D};\beta=\beta_{\tau}) = \exp{ (-\beta_{\tau} F(\boldsymbol{g}) ) }p(\boldsymbol{g}),
+$$
+
+where the inverse temperature $\beta$ is $0 = \beta_1 < \beta_2 < \cdots < \beta_{\tau} < \beta_T = 1$. For each replica, the parameters were sampled using the Monte Carlo method.
