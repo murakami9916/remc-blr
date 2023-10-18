@@ -47,7 +47,7 @@ $$
 
 where the inverse temperature $\beta$ is $0 = \beta_1 < \beta_2 < \cdots < \beta_{\tau} < \beta_T = 1$. For each replica, the parameters were sampled using the Monte Carlo method.
 
-## Estimating Density of States (DoS) using the multi-histogram method
+## Estimating Density of States using the multi-histogram method
 This code can estimate the density of states (DoS) from the histogram $H(F; \beta_{\tau})$ at an inverse temperature $\beta_{\tau}$, which can be obtained by the REMC method. When given the histogram $H(F; \beta_{\tau})$, we can calculate the density of states $D(F)$ by the iteration equation of the normalization constant $Z(\beta_\tau)$ and the density of states:
 
 $$
