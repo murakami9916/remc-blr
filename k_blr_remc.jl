@@ -18,7 +18,8 @@ struct Data
     λ₀::Float64
     λ_vector::Vector{Float64}
     labels::Vector{String}
-    Data(X, y, λ₀, λ_vector, labels) = new(X, y, λ₀,λ_vector,  labels)
+    K::Int64
+    Data(X, y, λ₀, λ_vector, labels, K) = new(X, y, λ₀,λ_vector,  labels, K)
 end
 
 mutable struct Parameters
@@ -46,6 +47,12 @@ mutable struct Result
     χ::Int64
 end
 # -----------------------------------------
+
+@inline function sampling_indicator(M::Int64, K::Int64)
+    g::Vector{Int64} = zeros(M)
+    g[rand(1:M, K)] .= 1
+    return g
+end
 
 @inline function calc_posterior_distribution(
                 X::Matrix{Float64}, y::Vector{Float64},
@@ -117,9 +124,17 @@ end
 function metropolis_indicator(data::Data, replica::Replica)
     L::Int64 = length(replica.Θ.g)
     β::Float64 = replica.β
+    K = data.K
+
     for i in randperm(L)
         Θₜ = deepcopy(replica.Θ)
+        
+        # 0/1の反転
         Θₜ.g[i] = ( ~Θₜ.g[i] + 2 )
+
+        if sum(Θₜ.g) > K
+            continue
+        end
 
         pattern::String = join(string.(Θₜ.g))
         if haskey(replica.stack, pattern)
@@ -205,12 +220,12 @@ function replica_exchange_mcmc(data::Data, replicas::Vector{Replica}, num_steps:
     return results
 end
 
-function calc_DoS(B::Vector{Float64}, results::Vector{Result}, output_path::String)
+function calc_DoS(K::Int64, B::Vector{Float64}, results::Vector{Result}, output_path::String)
 
     # マルチヒストグラムによるDoSの計算
     T = length(B)
     M = size(results[T].g)[2]
-    num_states = 2^M
+    num_states = sum([binomial(M,k_i) for k_i in 0:K])
     E_all = Array{Float64}(undef, num_steps, T)
     bottom = 1e-1
     for r in 1:T
@@ -356,7 +371,8 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
 
 end
 
-function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64})
+function load_data(path_input_data, path_output_data,
+                                    λ_vector::Vector{Float64}, K::Int64)
     y_df = CSV.read(path_output_data, DataFrame)
     y::Vector{Float64} = y_df[:, 1]
     N::Int64 = length(y)
@@ -368,18 +384,19 @@ function load_data(path_input_data, path_output_data, λ_vector::Vector{Float64}
 
     # ノーマライズ
     y = ( y .- mean(y) ) ./ std(y)
-    X = ( X .- mean(X, dims=1) ) ./ max.(std(X, dims=1), 1e-12)
+    X = ( X .- mean(X, dims=1) ) ./ max.(std(X, dims=1), 1e-8)
 
     ## 事前分布
     λ₀::Float64 = 0.1
-    return Data(X, y, λ₀, λ_vector, feature_label)
+    return Data(X, y, λ₀, λ_vector, feature_label, K)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
-    num_steps::Int64 = 1000 # MCMCステップ数
-    T::Int64 = 16
-    τ::Float64 = 1.15
+    num_steps::Int64 = 5000 # MCMCステップ数
+    T::Int64 = 32
+    τ::Float64 = 1.2
+    K::Int64 = 5
     λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.025:3.5])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
@@ -392,20 +409,22 @@ if abspath(PROGRAM_FILE) == @__FILE__
     output_path = "$output_basename/$input_basename/$random_seed"
     mkpath(output_path)
 
-    data::Data = load_data(path_input_data, path_output_data, λ_vector)
+    data::Data = load_data(path_input_data, path_output_data,
+                                                λ_vector, K)
 
     B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
     M::Int64 = length(data.labels)
     replicas = Array{Replica}(undef, T)
+    g = sampling_indicator(M, K)
     for r in 1:T
-        Θ = Parameters( rand([1, 0], M) )
+        Θ = Parameters( g )
         replicas[r] = Replica(Θ , B[r], 1e8 )
     end
 
     results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
 
     output_results(results, output_path)
-    calc_DoS(B, results, output_path)
+    calc_DoS(K, B, results, output_path)
     plot_result(results, data, num_steps, M, T, output_path)
     
 end

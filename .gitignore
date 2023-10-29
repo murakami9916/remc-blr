@@ -1,0 +1,12 @@
+# すべてをignore
+*
+
+# すべてのディレクトリをホワイトリストに追加する
+!*/
+
+# ホワイトリスト方式
+!.gitignore
+!README.md
+!blr_remc.jl
+!k_blr_remc.jl
+!DoS_analyzer.ipynb
