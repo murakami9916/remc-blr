@@ -34,7 +34,16 @@ $$
 p(\boldsymbol{g} | \mathcal{D}) = p(\mathcal{D}|\boldsymbol{g}) p(\boldsymbol{g}) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\lambda)p(\boldsymbol{w})p(\boldsymbol{g}),
 $$
 
-where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\mathcal{D}|\boldsymbol{g})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$, $p(\boldsymbol{\lambda})$. The prior distribution $p(\boldsymbol{g})$ is set to the uninformed Bernoulli distribution.
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\mathcal{D}|\boldsymbol{g})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$, $p(\boldsymbol{\lambda})$.
+
+## Model: K-sparse constraints
+We introduced K-sparse constraints into the prior distribution of indicator vector $p(\boldsymbol{g})$. The following shows the prior distribution of the K-sparse constraints:
+
+$$
+    p(\boldsymbol{g}) = I_{\mathrm{K}}(\boldsymbol{g})\prod_{g_m \in \boldsymbol{g}}{\mathcal{B}(g_m;p=0.5)},
+$$
+
+where the probability distribution $\mathcal{B}(g_m;p=0.5)$ denote the uninformed Bernoulli distribution. The function $I_{\mathrm{K}}(\boldsymbol{g})$ denote the k-sparse indicator function. The function $I_{\mathrm{K}}(\boldsymbol{g})$ outputs 1 when $\boldsymbol{g}\cdot\boldsymbol{g}^{\top} \leq K$ and otherwise 0.
 
 ## Algorithm: Replica Exchange Monte Carlo Method
 We perform posterior visualization and the maximum a posteriori (MAP) estimation through sampling from the posterior distribution. A popular sampling method is the Monte Carlo (MC) method, which may be bounded by local solutions for cases when the initial value is affected or the cost function landscape is complex.
@@ -42,7 +51,7 @@ We perform posterior visualization and the maximum a posteriori (MAP) estimation
 Therefore, the replica exchange Monte Carlo (REMC) method was used to estimate the global solution. For sampling using the REMC method, a replica was prepared with the inverse temperature $\beta$ introduced as follows:
 
 $$
-    p(\boldsymbol{g}|\mathcal{D};\beta=\beta_{\tau}) = \exp{ (-\beta_{\tau} F(\boldsymbol{g}) ) }p(\boldsymbol{g}),
+    p(\boldsymbol{g}|\mathcal{D};\beta=\beta_{\tau}) = \exp{ (-\beta_{\tau} F(\boldsymbol{g}) ) } p(\boldsymbol{g}),
 $$
 
 where the inverse temperature $\beta$ is $0 = \beta_1 < \beta_2 < \cdots < \beta_{\tau} < \beta_T = 1$. For each replica, the parameters were sampled using the Monte Carlo method.
