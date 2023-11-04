@@ -43,7 +43,7 @@ $$
     p(\boldsymbol{g}) = I_{\mathrm{K}}(\boldsymbol{g})\prod_{g_m \in \boldsymbol{g}}{\mathcal{B}(g_m;p=0.5)},
 $$
 
-where the probability distribution $\mathcal{B}(g_m;p=0.5)$ denote the uninformed Bernoulli distribution. The function $I_{\mathrm{K}}(\boldsymbol{g})$ denote the k-sparse indicator function. The function $I_{\mathrm{K}}(\boldsymbol{g})$ outputs 1 when $\boldsymbol{g}\cdot\boldsymbol{g}^{\top} \leq K$ and otherwise 0.
+where the probability distribution $\mathcal{B}(g_m;p=0.5)$ denotes the uninformed Bernoulli distribution. The function $I_{\mathrm{K}}(\boldsymbol{g})$ denotes the $k$-sparse indicator function. The function $I_{\mathrm{K}}(\boldsymbol{g})$ outputs 1 when $\boldsymbol{g}\cdot\boldsymbol{g}^{\top} \leq K$ and otherwise 0.
 
 ## Algorithm: Replica Exchange Monte Carlo Method
 We perform posterior visualization and the maximum a posteriori (MAP) estimation through sampling from the posterior distribution. A popular sampling method is the Monte Carlo (MC) method, which may be bounded by local solutions for cases when the initial value is affected or the cost function landscape is complex.
