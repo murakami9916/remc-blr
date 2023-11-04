@@ -48,7 +48,7 @@ where the probability distribution $\mathcal{B}(g_m;p=0.5)$ denotes the uninform
 ## Algorithm: Replica Exchange Monte Carlo Method
 We perform posterior visualization and the maximum a posteriori (MAP) estimation through sampling from the posterior distribution. A popular sampling method is the Monte Carlo (MC) method, which may be bounded by local solutions for cases when the initial value is affected or the cost function landscape is complex.
 
-Therefore, the replica exchange Monte Carlo (REMC) method was used to estimate the global solution. For sampling using the REMC method, a replica was prepared with the inverse temperature $\beta$ introduced as follows:
+Therefore, the replica exchange Monte Carlo (REMC) method was used to estimate the global solution. For sampling via the REMC method, a replica was prepared with the inverse temperature $\beta$ introduced as follows:
 
 $$
     p(\boldsymbol{g}|\mathcal{D};\beta=\beta_{\tau}) = \exp{ (-\beta_{\tau} F(\boldsymbol{g}) ) } p(\boldsymbol{g}),
