@@ -220,7 +220,7 @@ function replica_exchange_mcmc(data::Data, replicas::Vector{Replica}, num_steps:
     return results
 end
 
-function calc_DoS(K::Int64, B::Vector{Float64}, results::Vector{Result}, output_path::String)
+function calc_DoS(num_steps::Int64, K::Int64, B::Vector{Float64}, results::Vector{Result}, output_path::String)
 
     # マルチヒストグラムによるDoSの計算
     T = length(B)
@@ -271,12 +271,14 @@ function calc_DoS(K::Int64, B::Vector{Float64}, results::Vector{Result}, output_
     plt = plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
                     legend=false, xlabel="log(β)", ylabel="Free energy")
     savefig(plt, "$output_path/FE.png")
+
+    CSV.write( "$output_path/free_energy.csv",  DataFrame(B=B, FE=-log.(Z), Z=Z) )
 end
 
-function output_results(results::Vector{Result}, output_path::String)
+function output_results(data::Data, T::Int64, results::Vector{Result}, output_path::String)
     num_steps = size(results[T].g)[1]
     M = size(results[T].g)[2]
-    column_names = vcat(["E", "β", "K", "P"], ["X$i" for i in 1:M], )
+    column_names = vcat(["E", "β", "K", "P"], data.labels)
 
     output = DataFrame()
     for col_name in column_names
@@ -300,7 +302,7 @@ function output_results(results::Vector{Result}, output_path::String)
 end
 
 function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
-                                    M::Int64, T::Int64, output_path::String)
+                                    B::Vector{Float64}, M::Int64, T::Int64, output_path::String)
     num = fill(num_steps, T)
     num[1] = num_steps / 2.0
     num[T] = num_steps / 2.0
@@ -393,10 +395,11 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
-    num_steps::Int64 = 5000 # MCMCステップ数
-    T::Int64 = 32
-    τ::Float64 = 1.2
-    K::Int64 = 5
+    # setting
+    num_steps::Int64 = 10000 # MCMCステップ数
+    T::Int64 = 46 # 32
+    τ::Float64 = 1.1 # 1.2
+    K::Int64 = 10
     λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.025:3.5])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
@@ -407,10 +410,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     input_basename = split(basename(path_input_data), ".")[1]
     output_basename = split(basename(path_output_data), ".")[1]
     output_path = "$output_basename/$input_basename/$random_seed"
-    mkpath(output_path)
 
-    data::Data = load_data(path_input_data, path_output_data,
-                                                λ_vector, K)
+    data::Data = load_data(path_input_data, path_output_data, λ_vector, K)
 
     B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
     M::Int64 = length(data.labels)
@@ -420,11 +421,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
         Θ = Parameters( g )
         replicas[r] = Replica(Θ , B[r], 1e8 )
     end
-
     results::Vector{Result} = replica_exchange_mcmc(data, replicas, num_steps)
 
-    output_results(results, output_path)
-    calc_DoS(K, B, results, output_path)
-    plot_result(results, data, num_steps, M, T, output_path)
+    mkpath(output_path)
+    output_results(data, T, results, output_path)
+    calc_DoS(num_steps, K, B, results, output_path)
+    plot_result(results, data, num_steps, B, M, T, output_path)
     
 end
