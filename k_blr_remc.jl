@@ -94,7 +94,7 @@ end
                 Λ₀::Matrix{Float64}, λ_vector::Vector{Float64})
     M::Int64 = length(λ_vector)
     ϕ = Array{Float64}(undef, M)
-    for m in 1:M
+    Threads.@threads for m in 1:M
         λ::Float64 = λ_vector[m]
         μₙ, Λₙ = calc_posterior_distribution(X, y, λ, Λ₀)
         evidence::Float64  = calc_model_evidence(y, λ, μₙ, Λₙ, Λ₀)
