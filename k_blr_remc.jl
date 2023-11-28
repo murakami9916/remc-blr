@@ -9,6 +9,9 @@ using CSV
 using StatsBase
 using JLD2
 using FileIO
+using GR
+
+GR.inline("png")
 
 ### 構造体
 # -----------------------------------------
@@ -256,21 +259,23 @@ function calc_DoS(num_steps::Int64, K::Int64, B::Vector{Float64}, results::Vecto
         end
     end
 
-    plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
+    plt = Plots.bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",
             dpi=500, color="gray", fillrange=bottom)
-    savefig(plt, "$output_path/DoS_linear.png")
+    Plots.savefig(plt, "$output_path/DoS_linear.png")
 
 
-    plt = bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
+    plt = Plots.bar( E[D.!=0], num_states .* ( D[D.!=0] / sum(D[D.!=0]) ), legend=false, 
             xlabel="Negative marginal log-likelihood", ylabel = "Density of states",yscale=:log10,
             dpi=500, color="gray", fillrange=bottom)
-    savefig(plt, "$output_path/DoS_log.png")
+    # savefig(plt, "$output_path/DoS_log.png")
+    png(plt, "$output_path/DoS_log.png")
 
 
-    plt = plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
+    plt = Plots.plot(B, -log.(Z), xscale=:log10, st=:scatter, dpi=500,
                     legend=false, xlabel="log(β)", ylabel="Free energy")
-    savefig(plt, "$output_path/FE.png")
+    # savefig(plt, "$output_path/FE.png")
+    png(plt, "$output_path/FE.png")
 
     CSV.write( "$output_path/free_energy.csv",  DataFrame(B=B, FE=-log.(Z), Z=Z) )
 end
@@ -303,29 +308,30 @@ end
 
 function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
                                     B::Vector{Float64}, M::Int64, T::Int64, output_path::String)
+
     num = fill(num_steps, T)
     num[1] = num_steps / 2.0
     num[T] = num_steps / 2.0
-    plt = plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
+    plt = Plots.plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
                         xlabel="log(β)", ylabel="exchange ratio [%]", label="", xscale=:log10, color="gray")
-    savefig(plt, "$output_path/exchange_ratio.png")
+    Plots.savefig(plt, "$output_path/exchange_ratio.png")
 
     g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
-    plt = plot(1:length(data.labels), 100*g_sampling / num_steps, st="bar", label="",
+    plt = Plots.plot(1:length(data.labels), 100*g_sampling / num_steps, st="bar", label="",
                         ylims=(0, 105),dpi=500,xlabel="feature labels", ylabel="probability [%]",
                         color="gray", xrotation=90, xticks=(1:length(data.labels), data.labels))
 
-    savefig(plt, "$output_path/g_sampling.png")
+    Plots.savefig(plt, "$output_path/g_sampling.png")
 
     G = Matrix{Int64}(undef, M, T)
     for t in 1:T
         gₜ = Vector([sum(results[t].g[:, i]) for i in 1:size(results[t].g)[2]])
         G[:, t] = gₜ
     end
-    plt = heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
+    plt = Plots.heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
                         xscale=:log10, xlabel="log(β)", ylabel="feature labels", clim=(0, 100),
                         yticks=(0.5:length(data.labels), data.labels))
-    savefig(plt, "$output_path/heatmap.png")
+    Plots.savefig(plt, "$output_path/heatmap.png")
 
     
     # 列パターンごとの個数を計算
@@ -335,7 +341,7 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     # pattern_counts = pattern_counts[:, 1:minimum(5, length(pattern_counts.nrow))]
     num_c = minimum([15, length(pattern_counts.nrow)])
     pattern_counts = pattern_counts[1:num_c, :]
-    plt = heatmap(1:num_c, 1:M, Matrix{Int64}(pattern_counts[:, 1:M])', 
+    plt = Plots.heatmap(1:num_c, 1:M, Matrix{Int64}(pattern_counts[:, 1:M])', 
                             c=:binary, grid = true, legend = false, lw = 2, dpi=500,
                             xlabel="probability [%]", ylabel="feature labels")
 
@@ -346,7 +352,7 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
                          ["$(round(i, digits=2))" for i in 100.0.*pattern_counts.nrow./num_steps])
     plt = yticks!(Vector(1:M), data.labels)
 
-    savefig(plt, "$output_path/combination.png")
+    Plots.savefig(plt, "$output_path/combination.png")
 
 
     # 
@@ -359,17 +365,25 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     FE = integrate_over_lambda(λ_vector, ϕ)
 
     ϕ_max = maximum(-ϕ)
-    plt = plot(λ_vector, exp.(-ϕ.-ϕ_max), st="scatter", color="gray",
+    plt = Plots.plot(λ_vector, exp.(-ϕ.-ϕ_max), st="scatter", color="gray",
             xlabel="λ", ylabel="model evidence", label="", dpi=500)
-    savefig(plt, "$output_path/over_lambda.png")
+    Plots.savefig(plt, "$output_path/over_lambda.png")
 
     λ̂ = λ_vector[argmin(ϕ)]
     μ̂, Λ̂ = calc_posterior_distribution(Xₛ, y, λ̂, Λ₀)
     ŷ = Xₛ * μ̂
-    plt = plot([-4:4], [-4:4], label="", color="black")
-    plt = plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
+    plt = Plots.plot([-4:4], [-4:4], label="", color="black")
+    plt = Plots.plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
                         ylabel="predict", xlabel="true", color="gray", ms=5)
-    savefig(plt, "$output_path/prediction.png")
+    Plots.savefig(plt, "$output_path/prediction.png")
+
+    f = open( "$output_path/info.txt", "w")
+    println(f, "free energy"); println(f, round(FE, digits=4))
+    println(f, "λ̂"); println(f, round(λ̂, digits=4))
+    println(f, "ĝ"); println(f, data.labels); println(f, ĝ)
+    println(f, "μ̂"); println(f, data.labels[Bool.(ĝ)]); println(f, round.(μ̂, digits=4))
+    println(f, "Λ̂"); Base.print_array(f, round.(Λ̂, digits=4))
+    close(f)
 
 end
 
@@ -396,10 +410,10 @@ end
 if abspath(PROGRAM_FILE) == @__FILE__
 
     # setting
-    num_steps::Int64 = 10000 # MCMCステップ数
-    T::Int64 = 46 # 32
+    num_steps::Int64 = 500 # MCMCステップ数
+    T::Int64 = 32
     τ::Float64 = 1.1 # 1.2
-    K::Int64 = 10
+    K::Int64 = 5
     λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.025:3.5])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
