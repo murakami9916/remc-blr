@@ -318,12 +318,12 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     num[1] = num_steps / 2.0
     num[T] = num_steps / 2.0
     plt = Plots.plot(B, 100.0*[results[r].χ for r in 1:T] ./ num, st="scatter", ylims=(0, 115), dpi=500,
-                        xlabel="log(β)", ylabel="exchange ratio [%]", label="", xscale=:log10, color="gray")
+                        xlabel="log(β)", ylabel="Exchange ratio [%]", label="", xscale=:log10, color="gray")
     Plots.savefig(plt, "$output_path/exchange_ratio.png")
 
     g_sampling = Vector([sum(results[T].g[:, i]) for i in 1:size(results[T].g)[2]])
     plt = Plots.plot(1:length(data.labels), 100*g_sampling / num_steps, st="bar", label="",
-                        ylims=(0, 105),dpi=500,xlabel="feature labels", ylabel="probability [%]",
+                        ylims=(0, 105),dpi=500,xlabel="Feature labels", ylabel="Probability [%]",
                         color="gray", xrotation=90, xticks=(1:length(data.labels), data.labels))
 
     Plots.savefig(plt, "$output_path/g_sampling.png")
@@ -333,9 +333,9 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
         gₜ = Vector([sum(results[t].g[:, i]) for i in 1:size(results[t].g)[2]])
         G[:, t] = gₜ
     end
-    plt = Plots.heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 400), dpi=500,
-                        xscale=:log10, xlabel="log(β)", ylabel="feature labels", clim=(0, 100),
-                        yticks=(0.5:length(data.labels), data.labels))
+    plt = Plots.heatmap( B, data.labels, 100.0*G./num_steps, c=:jet, size=(600, 600), dpi=500,
+                        xscale=:log10, xlabel="log(β)", ylabel="Feature labels", clim=(0, 100),
+                        yticks=(0.5:length(data.labels), data.labels), colorbar_title="Probability [%]")
     Plots.savefig(plt, "$output_path/heatmap.png")
 
     
@@ -346,9 +346,29 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     # pattern_counts = pattern_counts[:, 1:minimum(5, length(pattern_counts.nrow))]
     num_c = minimum([15, length(pattern_counts.nrow)])
     pattern_counts = pattern_counts[1:num_c, :]
-    plt = Plots.heatmap(1:num_c, 1:M, Matrix{Int64}(pattern_counts[:, 1:M])', 
-                            c=:binary, grid = true, legend = false, lw = 2, dpi=500,
-                            xlabel="probability [%]", ylabel="feature labels")
+
+    coef_map = Matrix{Float64}(undef, num_c, M)
+    for idx in 1:num_c
+        ĝ = Vector(pattern_counts[idx, 1:end-1])
+        Xₛ = data.X[:, Bool.(ĝ)]; y = data.y
+
+        Λ₀ = data.λ₀ * Matrix(I, sum(ĝ), sum(ĝ))
+        ϕ = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, data.λ_vector)
+
+        λ̂ = data.λ_vector[argmin(ϕ)]
+        μ̂, Λ̂ = calc_posterior_distribution(Xₛ, y, λ̂, Λ₀)
+
+        ĉ = Float64.(deepcopy(ĝ))
+        ĉ[ĝ.==1] .*= μ̂
+        coef_map[idx, :] = ĉ
+    end
+
+    clim_max = 1.1*abs(maximum(coef_map))
+    clim_min = -1 * clim_max
+    plt = Plots.heatmap(1:num_c, 1:M, coef_map', 
+                            c=:bwr, grid = true, legend = true, lw = 2, dpi=500,
+                            xlabel="Probability [%]", ylabel="Feature labels",
+                            clim=(clim_min, clim_max), size=(600, 600), colorbar_title="Coefficient")
 
     plt = vline!([1.5:num_c+0.5], color=:gray, linewidth=2, label="", dpi=500)
     plt = hline!([1.5:M+0.5], color=:gray, linewidth=2, label="", dpi=500)
@@ -373,7 +393,7 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     area = trapezoidal_integration( λ_vector, exp.(-ϕ.-ϕ_max) )
     λ_posterior_distribution = exp.(-ϕ.-ϕ_max) / area
     plt = Plots.plot(λ_vector, λ_posterior_distribution, xscale=:log10, label="Posterior distribution",
-                        lw = 2, fill=(0, :gray), color=:black, alpha=0.8, xlabel="precision parameter λ", ylabel="Probability", dpi=500)
+                        lw = 2, fill=(0, :gray), color=:black, alpha=0.8, xlabel="Precision parameter λ", ylabel="Probability", dpi=500)
     plt = Plots.plot!(λ_vector, exp.(-data.neg_log_prior_density), xscale=:log10, label="Prior distribution",
                         lw = 2, fill=(0, :gray), color=:black, alpha=0.2)
     Plots.savefig(plt, "$output_path/over_lambda.png")
@@ -383,7 +403,7 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     ŷ = Xₛ * μ̂
     plt = Plots.plot([-4:4], [-4:4], label="", color="black")
     plt = Plots.plot!(y, ŷ, st="scatter", size=(500, 500), dpi=500, label="",
-                        ylabel="predict", xlabel="true", color="gray", ms=5)
+                        ylabel="Predict", xlabel="True", color="gray", ms=5)
     Plots.savefig(plt, "$output_path/prediction.png")
 
     f = open( "$output_path/info.txt", "w")
