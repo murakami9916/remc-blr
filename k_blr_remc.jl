@@ -20,9 +20,10 @@ struct Data
     y::Vector{Float64}
     λ₀::Float64
     λ_vector::Vector{Float64}
+    neg_log_prior_density::Vector{Float64}
     labels::Vector{String}
     K::Int64
-    Data(X, y, λ₀, λ_vector, labels, K) = new(X, y, λ₀,λ_vector,  labels, K)
+    Data(X, y, λ₀, λ_vector, neg_log_prior_density, labels, K) = new(X, y, λ₀,λ_vector, neg_log_prior_density, labels, K)
 end
 
 mutable struct Parameters
@@ -119,6 +120,10 @@ end
     Xₛ = data.X[:, Bool.(parameters.g)]
     y = data.y; λ_vector = data.λ_vector
     ϕ::Vector{Float64} = calc_marginal_likelihood_over_lambda(Xₛ, y, Λ₀, λ_vector)
+
+    ## 事前確率の足し合わせ
+    ϕ = ϕ + data.neg_log_prior_density
+    
     FE::Float64 = integrate_over_lambda(λ_vector, ϕ)
 
     return FE
@@ -365,8 +370,12 @@ function plot_result(results::Vector{Result}, data::Data, num_steps::Int64,
     FE = integrate_over_lambda(λ_vector, ϕ)
 
     ϕ_max = maximum(-ϕ)
-    plt = Plots.plot(λ_vector, exp.(-ϕ.-ϕ_max), st="scatter", color="gray",
-            xlabel="λ", ylabel="model evidence", label="", dpi=500)
+    area = trapezoidal_integration( λ_vector, exp.(-ϕ.-ϕ_max) )
+    λ_posterior_distribution = exp.(-ϕ.-ϕ_max) / area
+    plt = Plots.plot(λ_vector, λ_posterior_distribution, xscale=:log10, label="Posterior distribution",
+                        lw = 2, fill=(0, :gray), color=:black, alpha=0.8, xlabel="precision parameter λ", ylabel="Probability", dpi=500)
+    plt = Plots.plot!(λ_vector, exp.(-data.neg_log_prior_density), xscale=:log10, label="Prior distribution",
+                        lw = 2, fill=(0, :gray), color=:black, alpha=0.2)
     Plots.savefig(plt, "$output_path/over_lambda.png")
 
     λ̂ = λ_vector[argmin(ϕ)]
@@ -404,17 +413,19 @@ function load_data(path_input_data, path_output_data,
 
     ## 事前分布
     λ₀::Float64 = 0.1
-    return Data(X, y, λ₀, λ_vector, feature_label, K)
+    λ_prior_distribution = Gamma(1.1, 50)
+    neg_log_prior_density = -logpdf.(λ_prior_distribution, λ_vector)
+    return Data(X, y, λ₀, λ_vector, neg_log_prior_density, feature_label, K)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
 
     # setting
-    num_steps::Int64 = 500 # MCMCステップ数
+    num_steps::Int64 = 100 # MCMCステップ数
     T::Int64 = 32
     τ::Float64 = 1.1 # 1.2
     K::Int64 = 5
-    λ_vector::Vector{Float64} = Vector([10.0^i for i in 0.0:0.025:3.5])
+    λ_vector::Vector{Float64} = Vector([10.0^i for i in -1:0.025:2.5])
 
     random_seed::Int64 = tryparse(Int64, ARGS[1])
     Random.seed!(random_seed)
@@ -424,7 +435,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     input_basename = split(basename(path_input_data), ".")[1]
     output_basename = split(basename(path_output_data), ".")[1]
     output_path = "$output_basename/$input_basename/$random_seed"
-
+    
     data::Data = load_data(path_input_data, path_output_data, λ_vector, K)
 
     B::Vector{Float64} = Vector([τ^(t-T) for t in 1:T])
