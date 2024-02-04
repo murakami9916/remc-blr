@@ -70,3 +70,11 @@ $$
 where $n_\tau$ is the number of samples at $\beta_\tau$. We alternately compute the above equations to estimate $D(F)$ and $Z(\beta_\tau)$.
 
 ## Example
+
+![](image/prediction.png "サンプル")
+
+![](image/g_sampling.png "サンプル")
+
+![](image/over_lambda.png "サンプル")
+
+![](image/combination.png "サンプル")

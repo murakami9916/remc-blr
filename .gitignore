@@ -10,3 +10,5 @@
 !blr_remc.jl
 !k_blr_remc.jl
 !DoS_analyzer.ipynb
+
+!image/*.png
