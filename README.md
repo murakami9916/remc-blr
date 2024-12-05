@@ -31,10 +31,10 @@ $$
 The conditional probability of $\boldsymbol{g}$ can be expressed using Bayes' theorem and marginalization as follows:
 
 $$
-p(\boldsymbol{g} | \mathcal{D}) = p(\mathcal{D}|\boldsymbol{g}) p(\boldsymbol{g}) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\lambda)p(\boldsymbol{w})p(\boldsymbol{g}),
+p(\boldsymbol{g} | \mathcal{D}) \propto p(\mathcal{D}|\boldsymbol{g}) p(\boldsymbol{g}) = \int \mathrm{d} \boldsymbol{w} \mathrm{d} \lambda \ p(\mathcal{D}|\boldsymbol{g}, \boldsymbol{w}, \lambda)p(\lambda)p(\boldsymbol{w})p(\boldsymbol{g}),
 $$
 
-where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\mathcal{D}|\boldsymbol{g})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$, $p(\boldsymbol{\lambda})$.
+where the probability distribution $p(\boldsymbol{w})$, $p(\boldsymbol{g})$, $p(\lambda)$ denote the prior distribution of the stochastic variable. This is, the free energy $F(\boldsymbol{g})$ given the used indicator $\boldsymbol{g}$ is expressed as follows: $F(\boldsymbol{g}) = -\ln{p(\boldsymbol{g}|\mathcal{D})}$. This code assumed an uninformed distribution as the prior distribution $p(\boldsymbol{w})$, $p(\boldsymbol{\lambda})$.
 
 ## Model: K-sparse constraints
 We introduced K-sparse constraints into the prior distribution of indicator vector $p(\boldsymbol{g})$. The following shows the prior distribution of the K-sparse constraints:
